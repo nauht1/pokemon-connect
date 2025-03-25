@@ -1,17 +1,18 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using Unity.VisualScripting;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class GameLogic : MonoBehaviour
 {
     private Tile firstTile = null;
     private Tile secondTile = null;
     private BoardManager boardManager;
-    private Tile hintTile1 = null;
-    private Tile hintTile2 = null;
 
     private void Start()
     {
@@ -60,6 +61,7 @@ public class GameLogic : MonoBehaviour
 
                 boardManager.ReleaseTile(firstTile.gridPosition);
                 boardManager.ReleaseTile(secondTile.gridPosition);
+                GameManager.Instance.AddScore(10);
 
                 CheckMoves(false);
             }
@@ -164,15 +166,37 @@ public class GameLogic : MonoBehaviour
     // Kiểm tra kết nối với 2 góc vuông (bằng 1 góc trung gian)
     bool CanConnectTwoCorners(Vector2Int posA, Vector2Int posB)
     {
-        for (int x = 0; x < boardManager.rows; x++)
+        List<Vector2Int> potentialCorners = new List<Vector2Int>();
+
+        // Cùng hàng
+        for (int y = 0; y < boardManager.cols; y++)
         {
-            for (int y = 0; y < boardManager.cols; y++)
+            Vector2Int corner = new Vector2Int(posA.x, y);
+            if (!boardManager.HasTile(corner))
             {
-                Vector2Int corner = new Vector2Int(x, y);
-                if (!boardManager.HasTile(corner) && CanConnectOneCorner(posA, corner) && CanConnectOneCorner(corner, posB))
-                    return true;
+                potentialCorners.Add(corner);
             }
         }
+
+        // Cùng cột
+        for (int x = 0; x < boardManager.rows; x++)
+        {
+            Vector2Int corner = new Vector2Int(x, posA.y);
+            if (!boardManager.HasTile(corner))
+            {
+                potentialCorners.Add(corner);
+            }
+        }
+
+        foreach (var corner in potentialCorners)
+        {
+            if (CanConnectOneCorner(posA, corner) && 
+                CanConnectOneCorner(corner, posB))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -222,6 +246,11 @@ public class GameLogic : MonoBehaviour
                     }
                 }
             }
+        }
+
+        if (tileGroups.Count == 0)
+        {
+            GameManager.Instance.ShowCongrats();
         }
 
         Debug.Log("No more move available");
