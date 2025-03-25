@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -12,6 +13,7 @@ public class BoardManager : MonoBehaviour
 
     private List<int> availableIDs = new List<int>();
     private Dictionary<Vector2Int, Tile> tileDict = new Dictionary<Vector2Int, Tile>();
+    private Dictionary<int, List<Tile>> tileGroups = new Dictionary<int, List<Tile>>();
 
     private void Start()
     {
@@ -66,12 +68,37 @@ public class BoardManager : MonoBehaviour
     // Check xem tile có tồn tại với Key là Position ?
     public bool HasTile(Vector2Int pos)
     {
-        if (tileDict.ContainsKey(pos)) Debug.Log("True");
         return tileDict.ContainsKey(pos);
     }
 
     public void ReleaseTile(Vector2Int pos)
     {
-        tileDict.Remove(pos);
+        if (tileDict.ContainsKey(pos))
+        {
+            tileDict.Remove(pos);
+        }
+    }
+
+    public List<Tile> GetRemainingTiles()
+    {
+        return new List<Tile>(tileDict.Values);
+    }
+
+    public Dictionary<int, List<Tile>> GetTileGroups()
+    {
+        return tileGroups;
+    }
+
+    public void UpdateTileGroups()
+    {
+        tileGroups.Clear();
+        foreach (var tile in tileDict.Values)
+        {
+            if (!tileGroups.ContainsKey(tile.tileId))
+            {
+                tileGroups[tile.tileId] = new List<Tile>();
+            }
+            tileGroups[tile.tileId].Add(tile);
+        }
     }
 }

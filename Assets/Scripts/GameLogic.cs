@@ -10,6 +10,8 @@ public class GameLogic : MonoBehaviour
     private Tile firstTile = null;
     private Tile secondTile = null;
     private BoardManager boardManager;
+    private Tile hintTile1 = null;
+    private Tile hintTile2 = null;
 
     private void Start()
     {
@@ -25,13 +27,17 @@ public class GameLogic : MonoBehaviour
 
             if (hit.collider != null)
             {
-                Debug.Log("Hit");
                 Tile clickedTile = hit.collider.GetComponent<Tile>();
                 if (clickedTile != null) 
                 {
                     HandleTileClick(clickedTile);
                 }
             }
+        }
+
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            ShowHint();
         }
     }
 
@@ -54,6 +60,8 @@ public class GameLogic : MonoBehaviour
 
                 boardManager.ReleaseTile(firstTile.gridPosition);
                 boardManager.ReleaseTile(secondTile.gridPosition);
+
+                CheckMoves(false);
             }
             else
             {
@@ -72,9 +80,6 @@ public class GameLogic : MonoBehaviour
 
         Vector2Int posA = tileA.gridPosition;
         Vector2Int posB = tileB.gridPosition;
-
-        Debug.Log($"TileID: {tileA.tileId} PosA: {posA} ");
-        Debug.Log($"TileID: {tileB.tileId} PosB: {posB} ");
 
         if (tileA.tileId != tileB.tileId) return false;
 
@@ -107,7 +112,6 @@ public class GameLogic : MonoBehaviour
     // Kiểm tra kết nối trực tiếp
     bool CanConnectStraight(Vector2Int posA, Vector2Int posB)
     {
-        Debug.Log("One Straight");
         // Case cùng hàng
         if (posA.x == posB.x)
         {
@@ -139,11 +143,9 @@ public class GameLogic : MonoBehaviour
     // Kiểm tra kết nối với 1 góc vuông
     bool CanConnectOneCorner(Vector2Int posA, Vector2Int posB)
     {
-        Debug.Log("One Corner");
         Vector2Int corner1 = new Vector2Int(posA.x, posB.y);
         Vector2Int corner2 = new Vector2Int(posB.x, posA.y);
-        Debug.Log($"Corner 1: {corner1}");
-        Debug.Log($"Corner 2: {corner2}");
+
         if (!boardManager.HasTile(corner1) && CanConnectStraight(posA, corner1) && CanConnectStraight(corner1, posB))
         {
             return true;
@@ -174,6 +176,8 @@ public class GameLogic : MonoBehaviour
         return false;
     }
 
+
+    // Kiểm tra kết nối với trường hợp biên
     bool CanConnectViaBoundary(Vector2Int posA, Vector2Int posB)
     {
         int maxRow = boardManager.rows;
@@ -192,5 +196,39 @@ public class GameLogic : MonoBehaviour
             CanConnectStraight(new Vector2Int(maxRow, posB.y), posB);
 
         return canGoLeft || canGoRight || canGoTop || canGoBottom;
+    }
+
+    void CheckMoves(bool findHint)
+    {
+        boardManager.UpdateTileGroups();
+        var tileGroups = boardManager.GetTileGroups();
+
+        foreach (var group in tileGroups.Values)
+        {
+            int count = group.Count;
+            for (int i = 0; i < count - 1; i++)
+            {
+                for (int j = i + 1; j < count; j++)
+                {
+                    if (CanConnect(group[i], group[j]))
+                    {
+                        if (findHint)
+                        {
+                            group[i].GetComponent<Tile>().HighlightTile();
+                            group[j].GetComponent<Tile>().HighlightTile();
+                        }
+
+                        return;
+                    }
+                }
+            }
+        }
+
+        Debug.Log("No more move available");
+    }
+
+    void ShowHint()
+    {
+        CheckMoves(true);
     }
 }

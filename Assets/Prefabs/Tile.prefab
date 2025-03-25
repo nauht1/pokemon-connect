@@ -100,7 +100,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spriteRenderer: {fileID: 2045930722713628998}
+  backgroundSpriteRenderer: {fileID: 7502314779754448700}
   tileId: 0
+  defaultBackgroundColor: {r: 0.85098046, g: 0.8313726, b: 0.5372549, a: 1}
+  selectedColor: {r: 0.35657632, g: 0.9409677, b: 0.35657632, a: 1}
+  highlightColor: {r: 0.31178182, g: 0.31178182, b: 0.9589016, a: 1}
 --- !u!61 &-4895518745677463988
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -220,7 +224,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: -1
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.85129845, g: 0.8307215, b: 0.5372549, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
