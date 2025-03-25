@@ -222,6 +222,7 @@ public class GameLogic : MonoBehaviour
         return canGoLeft || canGoRight || canGoTop || canGoBottom;
     }
 
+    // Sử dụng để kiểm tra available move và show hint
     void CheckMoves(bool findHint)
     {
         boardManager.UpdateTileGroups();

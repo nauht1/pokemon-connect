@@ -101,4 +101,32 @@ public class BoardManager : MonoBehaviour
             tileGroups[tile.tileId].Add(tile);
         }
     }
+
+    public void ShuffleTiles()
+    {
+        List<Tile> remainingTiles = new List<Tile>(tileDict.Values);
+
+        if (remainingTiles.Count <= 1) return;
+
+        // Lấy vị trí cũ của các tiles và shuffle
+        List<Vector2Int> position = new List<Vector2Int>(tileDict.Keys);
+        position.Shuffle();
+
+        Dictionary<Vector2Int, Tile> newTileDict = new Dictionary<Vector2Int, Tile>();
+
+        // Cập nhật vị trí mới cho tiles
+        for (int i = 0; i < remainingTiles.Count; i++)
+        {
+            Vector2Int newPos = position[i];
+            Tile tile = remainingTiles[i];
+
+            tile.transform.position = new Vector3(newPos.y * tileSize, -newPos.x * tileSize, 0);
+            tile.gridPosition = newPos;
+
+            newTileDict[newPos] = tile;
+        }
+
+        tileDict = newTileDict;
+        Debug.Log("Tile shuffled");
+    }
 }
