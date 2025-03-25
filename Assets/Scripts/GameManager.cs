@@ -11,8 +11,13 @@ public class GameManager : MonoBehaviour
    
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI winText;
+    public TextMeshProUGUI hintText;
+
     public Button shuffleBtn;
+    public Button hintBtn;
+
     public BoardManager boardManager;
+    private GameLogic gameLogic;
 
     private int score = 0;
 
@@ -29,7 +34,9 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        gameLogic = FindObjectOfType<GameLogic>();
         shuffleBtn.onClick.AddListener(OnShuffleButtonClicked);
+        hintBtn.onClick.AddListener(OnHintButtonClicked);
     }
 
     public void AddScore(int points)
@@ -48,6 +55,19 @@ public class GameManager : MonoBehaviour
         if (boardManager != null)
         {
             boardManager.ShuffleTiles();
+        }
+    }
+
+    void OnHintButtonClicked()
+    {
+        if (gameLogic != null)
+        {
+            gameLogic.ShowHint();
+            hintText.text = "Hint: " + gameLogic.numsOfHint.ToString();
+            if (gameLogic.numsOfHint <= 0)
+            {
+                hintBtn.image.color = Color.gray;
+            }
         }
     }
 }

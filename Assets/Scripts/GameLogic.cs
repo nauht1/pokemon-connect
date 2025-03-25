@@ -14,6 +14,8 @@ public class GameLogic : MonoBehaviour
     private Tile secondTile = null;
     private BoardManager boardManager;
 
+    public int numsOfHint = 5;
+
     private void Start()
     {
         boardManager = FindObjectOfType<BoardManager>();
@@ -34,11 +36,6 @@ public class GameLogic : MonoBehaviour
                     HandleTileClick(clickedTile);
                 }
             }
-        }
-
-        if (Input.GetKeyDown(KeyCode.H))
-        {
-            ShowHint();
         }
     }
 
@@ -237,8 +234,9 @@ public class GameLogic : MonoBehaviour
                 {
                     if (CanConnect(group[i], group[j]))
                     {
-                        if (findHint)
+                        if (findHint && numsOfHint > 0)
                         {
+                            numsOfHint -= 1;
                             group[i].GetComponent<Tile>().HighlightTile();
                             group[j].GetComponent<Tile>().HighlightTile();
                         }
@@ -257,8 +255,19 @@ public class GameLogic : MonoBehaviour
         Debug.Log("No more move available");
     }
 
-    void ShowHint()
+    public void ShowHint()
     {
         CheckMoves(true);
+    }
+
+    public void ResetHint()
+    {
+        foreach (var group in boardManager.GetTileGroups().Values)
+        {
+            foreach (var tile in group)
+            {
+                tile.ResetHighlight();
+            }
+        }
     }
 }

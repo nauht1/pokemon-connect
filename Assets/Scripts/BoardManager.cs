@@ -10,6 +10,7 @@ public class BoardManager : MonoBehaviour
     public float tileSize = 2f;
     public GameObject tilePrefab;
     public List<Sprite> tileSprites;
+    private GameLogic gameLogic;
 
     private List<int> availableIDs = new List<int>();
     private Dictionary<Vector2Int, Tile> tileDict = new Dictionary<Vector2Int, Tile>();
@@ -17,6 +18,7 @@ public class BoardManager : MonoBehaviour
 
     private void Start()
     {
+        gameLogic = FindObjectOfType<GameLogic>();
         GenerateAvailableIDs();
         GenerateBoard();
     }
@@ -104,6 +106,9 @@ public class BoardManager : MonoBehaviour
 
     public void ShuffleTiles()
     {
+        // Reset Hint trước khi Shuffle
+        gameLogic.ResetHint();
+
         List<Tile> remainingTiles = new List<Tile>(tileDict.Values);
 
         if (remainingTiles.Count <= 1) return;
