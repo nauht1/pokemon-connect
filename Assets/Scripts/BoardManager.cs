@@ -1,0 +1,77 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class BoardManager : MonoBehaviour
+{
+    public int rows = 10;
+    public int cols = 20;
+    public float tileSize = 2f;
+    public GameObject tilePrefab;
+    public List<Sprite> tileSprites;
+
+    private List<int> availableIDs = new List<int>();
+    private Dictionary<Vector2Int, Tile> tileDict = new Dictionary<Vector2Int, Tile>();
+
+    private void Start()
+    {
+        GenerateAvailableIDs();
+        GenerateBoard();
+    }
+
+    // Khởi tạo Board
+    void GenerateBoard()
+    {
+        int index = 0;
+        for (int row = 0; row < rows; row++)
+        {
+            for (int col = 0; col < cols; col++)
+            {
+                Vector2Int gridPos = new Vector2Int(row, col);
+
+                // Do trục Oxy trong Engine nghịch với cách duyệt matrix thông thường
+                Vector3 position = new Vector3(col * tileSize, -row * tileSize, 0); 
+                GameObject gameObject = Instantiate(tilePrefab, position, Quaternion.identity, transform);
+
+                // Khởi tạo tile
+                Tile tile = gameObject.GetComponent<Tile>();
+
+                int tileID = availableIDs[index];
+                tile.SetTile(tileID, tileSprites[tileID]);
+                tile.gridPosition = gridPos;
+                tileDict[gridPos] = tile; // Save to dictionary
+
+                index++;
+            }
+        }
+    }
+
+    // Khởi tạo danh sách ID cho tile
+    void GenerateAvailableIDs()
+    {
+        int totalTiles = rows * cols;
+        int pairs = totalTiles / 4; // Chia 4 để ra 2 cặp
+
+        for (int i = 0; i < pairs; i++)
+        {
+            availableIDs.Add(i);
+            availableIDs.Add(i);
+            availableIDs.Add(i);
+            availableIDs.Add(i);
+        }
+
+        availableIDs.Shuffle();
+    }
+
+    // Check xem tile có tồn tại với Key là Position ?
+    public bool HasTile(Vector2Int pos)
+    {
+        if (tileDict.ContainsKey(pos)) Debug.Log("True");
+        return tileDict.ContainsKey(pos);
+    }
+
+    public void ReleaseTile(Vector2Int pos)
+    {
+        tileDict.Remove(pos);
+    }
+}
