@@ -164,6 +164,8 @@ public class BoardManager : MonoBehaviour
         lineRenderer.positionCount = path.Count;
         for (int i = 0; i < path.Count; i++)
         {
+            Debug.Log("Drawing Path: " + string.Join(" -> ", path));
+
             lineRenderer.SetPosition(i, GridToWorldPosition(path[i]));
         }
 
@@ -178,6 +180,6 @@ public class BoardManager : MonoBehaviour
 
     public bool IsValidPosition(Vector2Int pos)
     {
-        return pos.x >= -1 && pos.x <= rows && pos.y >= -1 && pos.y <= cols;
+        return pos.x >= 0 && pos.x < rows && pos.y >= 0 && pos.y < cols;
     }
 }

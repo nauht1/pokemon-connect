@@ -494,7 +494,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Hint
+  m_text: Hint (5)
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1449,7 +1449,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17c5dd93eeee8654ea7d4420de456c9e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numsOfHint: 50
+  numsOfHint: 5
   pointsPerPair: 10
 --- !u!4 &1728934640
 Transform:
@@ -1496,8 +1496,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e097468d6712fa54f99ee9991152178a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rows: 10
-  cols: 16
+  rows: 8
+  cols: 15
   tileSize: 2
   tilePrefab: {fileID: 512061852641227793, guid: ec9e98c1b7948ee449916b03bd10dbee, type: 3}
   delayTime: 0.5
