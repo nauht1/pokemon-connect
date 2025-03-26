@@ -1,12 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Data;
+﻿using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
-using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.UIElements;
+using UnityEngine.Experimental.Rendering;
 
 public class GameLogic : MonoBehaviour
 {
@@ -15,6 +10,9 @@ public class GameLogic : MonoBehaviour
     private BoardManager boardManager;
 
     public int numsOfHint = 5;
+    public int pointsPerPair = 10;
+
+    private List<Vector2Int> tempPath = new List<Vector2Int>();
 
     private void Start()
     {
@@ -51,14 +49,15 @@ public class GameLogic : MonoBehaviour
             secondTile = clickedTile;
             secondTile.SelectTile();
 
-            if (CanConnect(firstTile, secondTile)) // Kiểm tra xem hai tile có thể kết nối không
+            if (CanConnect(firstTile, secondTile, true)) // Kiểm tra xem hai tile có thể kết nối không
             {
+                boardManager.DrawPath(tempPath);
                 firstTile.HideTile();
                 secondTile.HideTile();
 
                 boardManager.ReleaseTile(firstTile.gridPosition);
                 boardManager.ReleaseTile(secondTile.gridPosition);
-                GameManager.Instance.AddScore(10);
+                GameManager.Instance.AddScore(pointsPerPair);
 
                 CheckMoves(false);
             }
@@ -74,39 +73,16 @@ public class GameLogic : MonoBehaviour
         }
     }
 
-    bool CanConnect(Tile tileA, Tile tileB)
+    bool CanConnect(Tile tileA, Tile tileB, bool savePath = false)
     {
-
-        Vector2Int posA = tileA.gridPosition;
-        Vector2Int posB = tileB.gridPosition;
+        tempPath.Clear();
 
         if (tileA.tileId != tileB.tileId) return false;
-
-        if (IsSameBoundary(posA, posB)) return true;
-
-        if (CanConnectStraight(posA, posB)) return true;
-
-        if (CanConnectOneCorner(posA, posB)) return true;
-
-        if (CanConnectViaBoundary(posA, posB)) return true;
-
-        if (CanConnectTwoCorners(posA, posB)) return true;
-
-        return false;
+        return CanConnectBFS(tileA.gridPosition, tileB.gridPosition, savePath) || 
+            CanConnectBFS(tileB.gridPosition, tileA.gridPosition, savePath);
     }
 
-    bool IsSameBoundary(Vector2Int posA, Vector2Int posB)
-    {
-        int maxRow = boardManager.rows - 1;
-        int maxCol = boardManager.cols - 1;
-
-        bool sameTopEdge = posA.x == 0 && posB.x == 0;
-        bool sameBottomEdge = posA.x == maxRow && posB.x == maxRow;
-        bool sameLeftEdge = posA.y == 0 && posB.y == 0;
-        bool sameRigtEdge = posA.y == maxCol && posB.y == maxCol;
-
-        return sameTopEdge || sameBottomEdge || sameLeftEdge || sameRigtEdge;
-    }
+    #region matrix approach, now use for check available moves and hints
 
     // Kiểm tra kết nối trực tiếp
     bool CanConnectStraight(Vector2Int posA, Vector2Int posB)
@@ -128,7 +104,7 @@ public class GameLogic : MonoBehaviour
         {
             int minX = Mathf.Min(posA.x, posB.x);
             int maxX = Mathf.Max(posA.x, posB.x);
-
+             
             for (int x = minX + 1; x < maxX; x++)
             {
                 if (boardManager.HasTile(new Vector2Int(x, posA.y))) return false;
@@ -145,13 +121,17 @@ public class GameLogic : MonoBehaviour
         Vector2Int corner1 = new Vector2Int(posA.x, posB.y);
         Vector2Int corner2 = new Vector2Int(posB.x, posA.y);
 
-        if (!boardManager.HasTile(corner1) && CanConnectStraight(posA, corner1) && CanConnectStraight(corner1, posB))
+        if (!boardManager.HasTile(corner1) && 
+            CanConnectStraight(posA, corner1) &&
+            CanConnectStraight(corner1, posB))
         {
             return true;
 
         }
 
-        if (!boardManager.HasTile(corner2) && CanConnectStraight(posA, corner2) && CanConnectStraight(corner2, posB))
+        if (!boardManager.HasTile(corner2) && 
+            CanConnectStraight(posA, corner2) &&
+            CanConnectStraight(corner2, posB))
         {
             return true;
 
@@ -187,7 +167,7 @@ public class GameLogic : MonoBehaviour
 
         foreach (var corner in potentialCorners)
         {
-            if (CanConnectOneCorner(posA, corner) && 
+            if (CanConnectOneCorner(posA, corner) &&
                 CanConnectOneCorner(corner, posB))
             {
                 return true;
@@ -219,6 +199,26 @@ public class GameLogic : MonoBehaviour
         return canGoLeft || canGoRight || canGoTop || canGoBottom;
     }
 
+    #endregion
+    
+    bool CheckConnection(Tile tileA, Tile tileB)
+    {
+        Vector2Int posA = tileA.gridPosition;
+        Vector2Int posB = tileB.gridPosition;
+
+        if (tileA.tileId != tileB.tileId) return false;
+
+        if (CanConnectStraight(posA, posB)) return true;
+
+        if (CanConnectOneCorner(posA, posB)) return true;
+
+        if (CanConnectViaBoundary(posA, posB)) return true;
+
+        if (CanConnectTwoCorners(posA, posB)) return true;
+
+        return false;
+    }
+
     // Sử dụng để kiểm tra available move và show hint
     void CheckMoves(bool findHint)
     {
@@ -232,7 +232,7 @@ public class GameLogic : MonoBehaviour
             {
                 for (int j = i + 1; j < count; j++)
                 {
-                    if (CanConnect(group[i], group[j]))
+                    if (CheckConnection(group[i], group[j]))
                     {
                         if (findHint && numsOfHint > 0)
                         {
@@ -257,7 +257,14 @@ public class GameLogic : MonoBehaviour
 
     public void ShowHint()
     {
-        CheckMoves(true);
+        if (numsOfHint > 0)
+        {
+            CheckMoves(true);
+        }
+        else
+        {
+            Debug.Log("No more hints available");
+        }
     }
 
     public void ResetHint()
@@ -269,5 +276,60 @@ public class GameLogic : MonoBehaviour
                 tile.ResetHighlight();
             }
         }
+    }
+
+    bool CanConnectBFS(Vector2Int start, Vector2Int end, bool savePath = false)
+    {
+        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+
+        // <currentPos, path, prevDir, turnCount>
+        Queue<(Vector2Int, List<Vector2Int>, int, int)> queue = new Queue<(Vector2Int, List<Vector2Int>, int, int)>();
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+
+        if (start == end) return true;
+
+        // Thêm phần tử đầu tiên vào queue
+        queue.Enqueue((start, new List<Vector2Int> { start }, -1, 0));
+        visited.Add(start);
+
+        while (queue.Count > 0)
+        {
+            // Pop khỏi hàng queue và duyệt
+            var (currentPos, path, prevDir, turnCount) = queue.Dequeue();
+
+            if (turnCount > 2) continue;
+
+            if (currentPos == end)
+            {
+                if (savePath) tempPath = path;
+                return true;
+            }
+
+            // Duyệt 4 hướng xung quanh vertex
+            for (int i = 0; i < directions.Length; i++)
+            {
+                Vector2Int nextPos = currentPos + directions[i];
+
+                // Kiểm tra tile có hợp lệ ?
+                if (!boardManager.IsValidPosition(nextPos))
+                    continue;
+
+                if (nextPos != end && boardManager.HasTile(nextPos)) continue;
+
+                // Nếu hướng di chuyển không đổi thì giữ nguyên, ngược lại tăng 1
+                int newTurnCount = (prevDir == -1 || prevDir == i) ? turnCount : turnCount + 1;
+                if (newTurnCount > 2) continue;
+
+                if (!visited.Contains(nextPos))
+                {
+                    // Tạo path mới
+                    List<Vector2Int> newPath = new List<Vector2Int>(path) { nextPos };
+                    queue.Enqueue((nextPos, newPath, i, newTurnCount));
+                    visited.Add(nextPos);
+                }
+            }
+        }
+
+        return false;
     }
 }

@@ -9,8 +9,13 @@ public class BoardManager : MonoBehaviour
     public int cols = 20;
     public float tileSize = 2f;
     public GameObject tilePrefab;
-    public List<Sprite> tileSprites;
     private GameLogic gameLogic;
+    private LineRenderer lineRenderer;
+
+    [Tooltip("Time for displaying lines connection")]
+    public float delayTime = 0.5f;
+
+    public List<Sprite> tileSprites;
 
     private List<int> availableIDs = new List<int>();
     private Dictionary<Vector2Int, Tile> tileDict = new Dictionary<Vector2Int, Tile>();
@@ -21,6 +26,14 @@ public class BoardManager : MonoBehaviour
         gameLogic = FindObjectOfType<GameLogic>();
         GenerateAvailableIDs();
         GenerateBoard();
+
+        lineRenderer = gameObject.GetComponent<LineRenderer>();
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startWidth = 0.1f;
+        lineRenderer.endWidth = 0.1f;
+        lineRenderer.startColor = Color.red;
+        lineRenderer.endColor = Color.red;
+        lineRenderer.useWorldSpace = true; // Vẽ bằng tọa độ thế giới
     }
 
     // Khởi tạo Board
@@ -106,6 +119,7 @@ public class BoardManager : MonoBehaviour
 
     public void ShuffleTiles()
     {
+
         // Reset Hint trước khi Shuffle
         gameLogic.ResetHint();
 
@@ -133,5 +147,37 @@ public class BoardManager : MonoBehaviour
 
         tileDict = newTileDict;
         Debug.Log("Tile shuffled");
+    }
+
+    // Hàm chuyển đổi Vector2 sang World Position
+    public Vector3 GridToWorldPosition(Vector2Int gridPos)
+    {
+        return new Vector3(gridPos.y * tileSize, -gridPos.x * tileSize, 0);
+    }
+
+    // Vẽ line giữa các điểm trong path
+    public void DrawPath(List<Vector2Int> path)
+    {
+
+        if (lineRenderer == null || path.Count < 2) return;
+
+        lineRenderer.positionCount = path.Count;
+        for (int i = 0; i < path.Count; i++)
+        {
+            lineRenderer.SetPosition(i, GridToWorldPosition(path[i]));
+        }
+
+        StartCoroutine(HideLineAfterDelay(delayTime));
+    }
+
+    private IEnumerator HideLineAfterDelay(float delayTime)
+    {
+        yield return new WaitForSeconds(delayTime);
+        lineRenderer.positionCount = 0; // Hide line
+    }
+
+    public bool IsValidPosition(Vector2Int pos)
+    {
+        return pos.x >= -1 && pos.x <= rows && pos.y >= -1 && pos.y <= cols;
     }
 }

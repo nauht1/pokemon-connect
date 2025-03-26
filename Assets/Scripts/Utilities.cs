@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public static class Utils
+public static class Utilities
 {
     public static void Shuffle<T>(this List<T> list) // sử dụng this để biến Shuffle thành extension method của List<T>
     {

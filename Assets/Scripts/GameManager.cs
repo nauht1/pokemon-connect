@@ -58,12 +58,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            OnHintButtonClicked();
+        }
+    }
     void OnHintButtonClicked()
     {
         if (gameLogic != null)
         {
             gameLogic.ShowHint();
-            hintText.text = "Hint: " + gameLogic.numsOfHint.ToString();
+            hintText.text = $"Hint ({gameLogic.numsOfHint.ToString()})";
             if (gameLogic.numsOfHint <= 0)
             {
                 hintBtn.image.color = Color.gray;
