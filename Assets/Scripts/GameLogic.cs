@@ -14,9 +14,12 @@ public class GameLogic : MonoBehaviour
 
     private List<Vector2Int> tempPath = new List<Vector2Int>();
 
+    private AudioManager audioManager;
+
     private void Start()
     {
         boardManager = FindObjectOfType<BoardManager>();
+        audioManager = GameObject.FindGameObjectWithTag("Audio").GetComponent<AudioManager>();
     }
 
     private void Update()
@@ -51,6 +54,9 @@ public class GameLogic : MonoBehaviour
 
             if (CanConnect(firstTile, secondTile, true)) // Kiểm tra xem hai tile có thể kết nối không
             {
+                // Play connect audio
+                audioManager.PlaySFX(audioManager.connect);
+
                 boardManager.DrawPath(tempPath);
                 firstTile.HideTile();
                 secondTile.HideTile();
@@ -64,6 +70,7 @@ public class GameLogic : MonoBehaviour
             else
             {
                 // Deselected
+                audioManager.PlaySFX(audioManager.wrongConnect);
                 firstTile.SelectTile(); 
                 secondTile.SelectTile();
             }
