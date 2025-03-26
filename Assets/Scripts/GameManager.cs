@@ -1,9 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SocialPlatforms.Impl;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour
 
     public Button shuffleBtn;
     public Button hintBtn;
+    public Button backHomeBtn;
 
     public BoardManager boardManager;
     private GameLogic gameLogic;
@@ -26,10 +27,11 @@ public class GameManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
         else
+        {
             Destroy(gameObject);
+        }
     }
 
     private void Start()
@@ -37,6 +39,7 @@ public class GameManager : MonoBehaviour
         gameLogic = FindObjectOfType<GameLogic>();
         shuffleBtn.onClick.AddListener(OnShuffleButtonClicked);
         hintBtn.onClick.AddListener(OnHintButtonClicked);
+        backHomeBtn.onClick.AddListener(OnBackHomeBtnClicked);
     }
 
     public void AddScore(int points)
@@ -76,5 +79,10 @@ public class GameManager : MonoBehaviour
                 hintBtn.image.color = Color.gray;
             }
         }
+    }
+
+    void OnBackHomeBtnClicked()
+    {
+        SceneManager.LoadSceneAsync(0);
     }
 }
