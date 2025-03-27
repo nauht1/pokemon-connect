@@ -10,7 +10,7 @@ public class CameraController : MonoBehaviour
         CenterCameraOnBoard();
     }
 
-    void CenterCameraOnBoard()
+    public void CenterCameraOnBoard()
     {
         if (boardManager == null) return;
 

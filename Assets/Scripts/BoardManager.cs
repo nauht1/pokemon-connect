@@ -5,8 +5,8 @@ using UnityEngine;
 
 public class BoardManager : MonoBehaviour
 {
-    public int rows = 10;
-    public int cols = 20;
+    public int rows { get; private set; }
+    public int cols { get; private set; }
     public float tileSize = 2f;
     public GameObject tilePrefab;
     private GameLogic gameLogic;
@@ -36,9 +36,26 @@ public class BoardManager : MonoBehaviour
         lineRenderer.useWorldSpace = true; // Vẽ bằng tọa độ thế giới
     }
 
-    // Khởi tạo Board
-    void GenerateBoard()
+    public void SetBoardSize(int newRows, int newCols)
     {
+        rows = newRows;
+        cols = newCols;
+    }
+
+    // Khởi tạo Board
+    public void GenerateBoard()
+    {
+        // Xóa bảng cũ nếu có
+        foreach (var tile in tileDict.Values)
+        {
+            Destroy(tile.gameObject);
+        }
+        tileDict.Clear();
+        tileGroups.Clear();
+        availableIDs.Clear();
+
+        GenerateAvailableIDs();
+
         int index = 0;
         for (int row = 0; row < rows; row++)
         {

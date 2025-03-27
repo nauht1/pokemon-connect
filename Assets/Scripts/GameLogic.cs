@@ -10,7 +10,6 @@ public class GameLogic : MonoBehaviour
     private BoardManager boardManager;
 
     public int numsOfHint = 5;
-    public int pointsPerPair = 10;
 
     private List<Vector2Int> tempPath = new List<Vector2Int>();
 
@@ -63,7 +62,7 @@ public class GameLogic : MonoBehaviour
 
                 boardManager.ReleaseTile(firstTile.gridPosition);
                 boardManager.ReleaseTile(secondTile.gridPosition);
-                GameManager.Instance.AddScore(pointsPerPair);
+                GameManager.Instance.AddScore();
 
                 CheckMoves(false);
             }
