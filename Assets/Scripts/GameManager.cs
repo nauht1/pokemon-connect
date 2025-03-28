@@ -4,9 +4,13 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using Photon.Pun;
 
 public class GameManager : MonoBehaviour
 {
+    public enum GameMode { Endless, Multiplayer }
+    private GameMode currentGameMode = GameMode.Endless;
+
     public static GameManager Instance { get; private set; }
    
     public TextMeshProUGUI scoreText;
@@ -22,6 +26,9 @@ public class GameManager : MonoBehaviour
     public CameraController cameraController;
     private GameLogic gameLogic;
 
+    public string playerName { get; private set; }
+    public string roomName { get; private set; }
+
     private int score = 0;
     private int level = 0;
 
@@ -34,6 +41,7 @@ public class GameManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            DontDestroyOnLoad(gameObject);
         }
         else
         {
@@ -43,13 +51,80 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (currentGameMode == GameMode.Endless)
+            AssignReferencesFromScene();
+
+        // Connect to Photon nếu chọn Multiplayer game mode
+        if (currentGameMode == GameMode.Multiplayer && !PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.ConnectUsingSettings();
+        }
+
+        // Initilize game nếu player trong Room hoặc đang ở main game scene (level)
+        if ((currentGameMode == GameMode.Multiplayer && PhotonNetwork.InRoom) || scene.buildIndex == 2)
+        {
+            InitilizeGame();
+        }
+    }
+
+    void AssignReferencesFromScene()
+    {
+        SceneReferences sceneRefs = FindObjectOfType<SceneReferences>();
+        if (sceneRefs == null)
+        {
+            Debug.LogWarning("SceneReferences not found in the scene!");
+            return;
+        }
+
+        // Gán các field từ SceneReferences
+        scoreText = sceneRefs.scoreText;
+        winText = sceneRefs.winText;
+        hintText = sceneRefs.hintText;
+        levelText = sceneRefs.levelText;
+
+        shuffleBtn = sceneRefs.shuffleBtn;
+        hintBtn = sceneRefs.hintBtn;
+        backHomeBtn = sceneRefs.backHomeBtn;
+
+        boardManager = sceneRefs.boardManager;
+        cameraController = sceneRefs.cameraController;
+    }
+    void InitilizeGame()
+    {
         gameLogic = FindObjectOfType<GameLogic>();
-        shuffleBtn.onClick.AddListener(OnShuffleButtonClicked);
-        hintBtn.onClick.AddListener(OnHintButtonClicked);
-        backHomeBtn.onClick.AddListener(OnBackHomeBtnClicked);
+        if (shuffleBtn != null) 
+            shuffleBtn.onClick.AddListener(OnShuffleButtonClicked);
+
+        if (hintBtn != null)
+            hintBtn.onClick.AddListener(OnHintButtonClicked);
+
+        if (backHomeBtn != null)
+            backHomeBtn.onClick.AddListener(OnBackHomeBtnClicked);
 
         UpdateLevelText();
         SetupBoard();
+        ResetHintUse();
+        UpdateHintUI();
+    }
+
+    public void SetPlayerName(string _playerName)
+    {
+        playerName = _playerName;
+    }
+
+    public void SetRoomName(string _roomName)
+    {
+        roomName = _roomName;
+    }
+
+    public void SetGameMode(GameMode _gameMode)
+    {
+        currentGameMode = _gameMode;
     }
 
     void UpdateLevelText()
