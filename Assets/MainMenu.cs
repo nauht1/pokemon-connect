@@ -8,7 +8,7 @@ public class MainMenu : MonoBehaviour
     public void PlayEnlessGameMode()
     {
         GameManager.Instance.SetGameMode(GameManager.GameMode.Endless);
-        SceneManager.LoadSceneAsync(2);
+        SceneManager.LoadScene(3);
     }
 
     public void PlayMultiplayerGameMode()

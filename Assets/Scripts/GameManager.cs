@@ -56,24 +56,22 @@ public class GameManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (currentGameMode == GameMode.Endless)
+        if (currentGameMode == GameMode.Endless && scene.buildIndex == 3)
+        {
             AssignReferencesFromScene();
+            InitilizeGame();
+        }
 
         // Connect to Photon nếu chọn Multiplayer game mode
         if (currentGameMode == GameMode.Multiplayer && !PhotonNetwork.IsConnected)
         {
             PhotonNetwork.ConnectUsingSettings();
         }
-
-        // Initilize game nếu player trong Room hoặc đang ở main game scene (level)
-        if ((currentGameMode == GameMode.Multiplayer && PhotonNetwork.InRoom) || scene.buildIndex == 2)
-        {
-            InitilizeGame();
-        }
     }
 
     void AssignReferencesFromScene()
     {
+        Debug.Log("Assigned");
         SceneReferences sceneRefs = FindObjectOfType<SceneReferences>();
         if (sceneRefs == null)
         {
@@ -94,7 +92,7 @@ public class GameManager : MonoBehaviour
         boardManager = sceneRefs.boardManager;
         cameraController = sceneRefs.cameraController;
     }
-    void InitilizeGame()
+    public void InitilizeGame()
     {
         gameLogic = FindObjectOfType<GameLogic>();
         if (shuffleBtn != null) 
