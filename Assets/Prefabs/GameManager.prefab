@@ -53,6 +53,7 @@ MonoBehaviour:
   backHomeBtn: {fileID: 0}
   boardManager: {fileID: 0}
   cameraController: {fileID: 0}
+  playerScorePanels: []
   nextLevelDelayTime: 3
   pointsPerPair: 10
   hintsPerLevel: 5

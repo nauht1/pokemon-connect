@@ -18,6 +18,8 @@ public class SceneReferences : MonoBehaviour
     public BoardManager boardManager;
     public CameraController cameraController;
 
+    public PlayerScorePanel[] playerScorePanels;
+
     public static SceneReferences Instance {get; private set;}
 
     private void Awake()

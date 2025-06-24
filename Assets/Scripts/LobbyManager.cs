@@ -60,6 +60,7 @@ public class LobbyManager : MonoBehaviourPunCallbacks
         }
 
         UpdatePlayerReadyStatus();
+        PhotonNetwork.AutomaticallySyncScene = true;
     }
 
     // Khởi tạo panel
@@ -175,8 +176,7 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     public void OnStartBtnClicked()
     {
-        PhotonNetwork.LoadLevel(3);
-        GameManager.Instance.InitilizeGame();
+        PhotonNetwork.LoadLevel(4);
     }
 
     public void OnQuitBtnClicked()

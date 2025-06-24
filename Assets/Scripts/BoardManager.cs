@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using Photon.Pun;
 
-public class BoardManager : MonoBehaviour
+public class BoardManager : MonoBehaviourPunCallbacks
 {
     public int rows { get; private set; }
     public int cols { get; private set; }
@@ -25,7 +26,6 @@ public class BoardManager : MonoBehaviour
     {
         gameLogic = FindObjectOfType<GameLogic>();
         GenerateAvailableIDs();
-        GenerateBoard();
 
         lineRenderer = gameObject.GetComponent<LineRenderer>();
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
@@ -105,9 +105,24 @@ public class BoardManager : MonoBehaviour
 
     public void ReleaseTile(Vector2Int pos)
     {
-        if (tileDict.ContainsKey(pos))
+        try
         {
-            tileDict.Remove(pos);
+            if (tileDict.ContainsKey(pos))
+            {
+                if (tileDict[pos] != null && tileDict[pos].gameObject != null)
+                {
+                    Destroy(tileDict[pos].gameObject);
+                }
+                tileDict.Remove(pos);
+            }
+            if (PhotonNetwork.IsConnected && photonView != null)
+            {
+                photonView.RPC("RPC_ReleaseTile", RpcTarget.Others, pos.x, pos.y);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error releasing tile at {pos}: {e.Message}\n{e.StackTrace}");
         }
     }
 
@@ -124,8 +139,15 @@ public class BoardManager : MonoBehaviour
     public void UpdateTileGroups()
     {
         tileGroups.Clear();
-        foreach (var tile in tileDict.Values)
+
+        // Create a copy of dictionary values
+        List<Tile> tileValues = new List<Tile>(tileDict.Values);
+
+        foreach (var tile in tileValues)
         {
+            // Check if tile is valid
+            if (tile == null) continue;
+
             if (!tileGroups.ContainsKey(tile.tileId))
             {
                 tileGroups[tile.tileId] = new List<Tile>();
@@ -198,5 +220,98 @@ public class BoardManager : MonoBehaviour
     public bool IsValidPosition(Vector2Int pos)
     {
         return pos.x >= 0 && pos.x < rows && pos.y >= 0 && pos.y < cols;
+    }
+
+    public void SendBoardToClients()
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        if (tileDict.Count == 0)
+        {
+            Debug.LogError("tileDict is empty! Board has not been generated yet.");
+            return;
+        }
+
+        Debug.Log($"Sending board to clients. Rows: {rows}, Cols: {cols}, Tile count: {tileDict.Count}");
+
+        // Gửi kích thước board
+        photonView.RPC("RPC_SetBoardSize", RpcTarget.Others, 10, 16);
+
+        // Gửi danh sách tile
+        List<Vector2Int> positions = new List<Vector2Int>(tileDict.Keys);
+        int[] posX = new int[positions.Count];
+        int[] posY = new int[positions.Count];
+        int[] tileIDs = new int[positions.Count];
+
+        for (int i = 0; i < positions.Count; i++)
+        {
+            posX[i] = positions[i].x;
+            posY[i] = positions[i].y;
+            tileIDs[i] = tileDict[positions[i]].tileId;
+        }
+
+        photonView.RPC("RPC_SyncBoard", RpcTarget.Others, posX, posY, tileIDs);
+    }
+
+    [PunRPC]
+    public void RPC_SetBoardSize(int newRows, int newCols) {
+        rows = newRows;
+        cols = newCols;
+    }
+
+    [PunRPC]
+    public void RPC_SyncBoard(int[] posX, int[] posY, int[] tileIDs)
+    {
+        // Xóa board cũ nếu có
+        foreach (var tile in tileDict.Values)
+        {
+            Destroy(tile.gameObject);
+        }
+        tileDict.Clear();
+        tileGroups.Clear();
+
+        // Tái tạo board từ dữ liệu nhận được
+        for (int i = 0; i < posX.Length; i++)
+        {
+            Vector2Int gridPos = new Vector2Int(posX[i], posY[i]);
+            Vector3 position = new Vector3(gridPos.y * tileSize, -gridPos.x * tileSize, 0);
+            GameObject gameObject = Instantiate(tilePrefab, position, Quaternion.identity, transform);
+
+            Tile tile = gameObject.GetComponent<Tile>();
+            int tileID = tileIDs[i];
+            tile.SetTile(tileID, tileSprites[tileID]);
+            tile.gridPosition = gridPos;
+            tileDict[gridPos] = tile;
+        }
+
+        // Cập nhật camera sau khi board được tạo
+        CameraController cameraController = FindObjectOfType<CameraController>();
+        if (cameraController != null)
+        {
+            cameraController.CenterCameraOnBoard();
+        }
+        Debug.Log("Board synced on client");
+    }
+
+    [PunRPC]
+    public void RPC_ReleaseTile(int x, int y)
+    {
+        try
+        {
+            Vector2Int pos = new Vector2Int(x, y);
+            if (tileDict.ContainsKey(pos))
+            {
+                // Add null check before destroying
+                if (tileDict[pos] != null && tileDict[pos].gameObject != null)
+                {
+                    Destroy(tileDict[pos].gameObject);
+                }
+                tileDict.Remove(pos);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error in RPC_ReleaseTile: {e.Message}\n{e.StackTrace}");
+        }
     }
 }

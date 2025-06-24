@@ -5,6 +5,7 @@ using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Photon.Pun;
+using Unity.VisualScripting;
 
 public class GameManager : MonoBehaviour
 {
@@ -28,6 +29,11 @@ public class GameManager : MonoBehaviour
 
     public string playerName { get; private set; }
     public string roomName { get; private set; }
+
+    private Dictionary<int, int> playerScores = new Dictionary<int, int>();
+    private Dictionary<int, string> playerNames = new Dictionary<int, string>();
+
+    public PlayerScorePanel[] playerScorePanels;
 
     private int score = 0;
     private int level = 0;
@@ -56,9 +62,10 @@ public class GameManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        AssignReferencesFromScene();
+
         if (currentGameMode == GameMode.Endless && scene.buildIndex == 3)
         {
-            AssignReferencesFromScene();
             InitilizeGame();
         }
 
@@ -66,13 +73,29 @@ public class GameManager : MonoBehaviour
         if (currentGameMode == GameMode.Multiplayer && !PhotonNetwork.IsConnected)
         {
             PhotonNetwork.ConnectUsingSettings();
+        }  
+
+        if (currentGameMode == GameMode.Multiplayer && PhotonNetwork.IsConnected && scene.buildIndex == 4)
+        {
+            InitilizeGame();
         }
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    public GameMode GetCurrentGameMode()
+    {
+        return currentGameMode;
     }
 
     void AssignReferencesFromScene()
     {
-        Debug.Log("Assigned");
+        Debug.Log("ASsign");
         SceneReferences sceneRefs = FindObjectOfType<SceneReferences>();
+
         if (sceneRefs == null)
         {
             Debug.LogWarning("SceneReferences not found in the scene!");
@@ -91,9 +114,97 @@ public class GameManager : MonoBehaviour
 
         boardManager = sceneRefs.boardManager;
         cameraController = sceneRefs.cameraController;
+        playerScorePanels = sceneRefs.playerScorePanels;
     }
+
+    public void SetPlayerName(string _playerName)
+    {
+        playerName = _playerName;
+        if (currentGameMode == GameMode.Multiplayer && PhotonNetwork.IsConnected && PhotonNetwork.InRoom)
+        {
+            Debug.Log("Set player name");
+            PhotonNetwork.LocalPlayer.NickName = _playerName;
+            NetworkManager.Instance.SyncPlayerName(PhotonNetwork.LocalPlayer.ActorNumber, _playerName);
+        }
+    }
+
+    public void OnPlayerNameSynced(int actorNumber, string name)
+    {
+        playerNames[actorNumber] = name;
+        UpdateScoreUI();
+    }
+
+    public void AddScore(int playerActorNumber)
+    {
+        if (!playerScores.ContainsKey(playerActorNumber))
+        {
+            playerScores[playerActorNumber] = 0;
+        }
+
+        playerScores[playerActorNumber] += pointsPerPair;
+        UpdateScoreUI();
+
+        if (currentGameMode == GameMode.Multiplayer)
+        {
+            NetworkManager.Instance.UpdateScore(playerActorNumber, playerScores[playerActorNumber]);
+        }
+    }
+
+    public void OnScoreUpdated(int playerActorNumber, int newScore)
+    {
+        playerScores[playerActorNumber] = newScore;
+        UpdateScoreUI();
+    }
+
+    private void UpdateScoreUI()
+    {
+        if (currentGameMode == GameMode.Endless)
+        {
+            if (scoreText != null)
+            {
+                int score = playerScores.ContainsKey(0) ? playerScores[0] : 0;
+                scoreText.text = "Score: " + score;
+            }
+        }
+        else if (currentGameMode == GameMode.Multiplayer)
+        {
+            Debug.Log(playerScorePanels.Length);
+            for (int i = 0; i < playerScorePanels.Length; i++)
+            {
+                if (i < PhotonNetwork.PlayerList.Length)
+                {
+                    int actorNumber = PhotonNetwork.PlayerList[i].ActorNumber;
+                    string playerName = playerNames.ContainsKey(actorNumber) ? playerNames[actorNumber] : "Unknown";
+
+                    // Check if the player has a score before trying to access it
+                    int score = playerScores.ContainsKey(actorNumber) ? playerScores[actorNumber] : 0;
+    
+                    Debug.Log($"Updating UI for player {actorNumber}: Name = {playerName}, Score = {score}");
+                    playerScorePanels[i].gameObject.SetActive(true);
+                    playerScorePanels[i].SetPlayerInfo(playerName, score);
+                }
+                else
+                {
+                    playerScorePanels[i].gameObject.SetActive(false);
+                }
+            }
+        }
+    }
+
     public void InitilizeGame()
     {
+        if (currentGameMode == GameMode.Multiplayer)
+        {
+            Debug.Log("Delay 1s");
+            StartCoroutine(DelayInit(0.5f));
+            // Initialize scores for all players
+            InitializePlayerScores();
+            if (!PhotonNetwork.IsMasterClient)
+            {
+                return; // Client sẽ chờ RPC từ Master
+            }
+        }
+
         gameLogic = FindObjectOfType<GameLogic>();
         if (shuffleBtn != null) 
             shuffleBtn.onClick.AddListener(OnShuffleButtonClicked);
@@ -105,15 +216,23 @@ public class GameManager : MonoBehaviour
             backHomeBtn.onClick.AddListener(OnBackHomeBtnClicked);
 
         UpdateLevelText();
-        SetupBoard();
-        ResetHintUse();
+        StartCoroutine(SetupBoard());
+
+        if (currentGameMode == GameMode.Endless)
+            ResetHintUse();
+
         UpdateHintUI();
     }
 
-    public void SetPlayerName(string _playerName)
+    private IEnumerator DelayInit(float delayTime)
     {
-        playerName = _playerName;
+        yield return new WaitForSeconds(delayTime);
     }
+
+    //public void SetPlayerName(string _playerName)
+    //{
+    //    playerName = _playerName;
+    //}
 
     public void SetRoomName(string _roomName)
     {
@@ -131,11 +250,38 @@ public class GameManager : MonoBehaviour
             levelText.text = $"Level {level}";
     }
 
-    void SetupBoard()
+    IEnumerator SetupBoard()
     {
-        (int rows, int cols) = GetBoardSize(level);
-        boardManager.SetBoardSize(rows, cols);
-        boardManager.GenerateBoard();
+        if (boardManager == null)
+        {
+            yield break;
+        }
+
+        if (cameraController == null)
+        {
+            yield break;
+
+        }
+
+        if (currentGameMode == GameMode.Endless)
+        {
+            (int rows, int cols) = GetBoardSize(level);
+            boardManager.SetBoardSize(rows, cols);
+            boardManager.GenerateBoard();
+        }
+        else if (currentGameMode == GameMode.Multiplayer)
+        {
+            // Tạo board nếu là Host
+            if (PhotonNetwork.IsMasterClient)
+            {
+                boardManager.SetBoardSize(10, 16);
+                boardManager.GenerateBoard();
+                boardManager.SendBoardToClients();
+            }
+        }
+
+        yield return new WaitForSeconds(0.5f);
+
         cameraController.CenterCameraOnBoard();
     }
 
@@ -154,7 +300,27 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void AddScore()
+    private void InitializePlayerScores()
+    {
+        Debug.Log("Initializing player scores for all players in room");
+
+        // Clear existing scores
+        playerScores.Clear();
+
+        // Initialize scores for all players currently in the room
+        foreach (var player in PhotonNetwork.PlayerList)
+        {
+            if (!playerScores.ContainsKey(player.ActorNumber))
+            {
+                playerScores[player.ActorNumber] = 0;
+                Debug.Log($"Initialized score for player {player.ActorNumber}");
+            }
+        }
+
+        UpdateScoreUI();
+    }
+
+    public void AddScoreEndless()
     {
         score += pointsPerPair;
         scoreText.text = "Score: " + score;
@@ -163,7 +329,14 @@ public class GameManager : MonoBehaviour
     public void ShowCongrats()
     {
         winText.text = "You win!!";
-        StartCoroutine(NextLevel(nextLevelDelayTime));
+        if (currentGameMode == GameMode.Endless)
+        {
+            StartCoroutine(NextLevel(nextLevelDelayTime));
+        } 
+        else if (currentGameMode == GameMode.Multiplayer)
+        {
+            StartCoroutine(ReturnToLobby(nextLevelDelayTime));
+        }
     }
 
     private IEnumerator NextLevel(float delayTime)
@@ -171,10 +344,16 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(delayTime);
         level++;
         UpdateLevelText();
-        SetupBoard();
+        StartCoroutine(SetupBoard());
         ResetHintUse();
         UpdateHintUI();
         winText.text = "";
+    }
+
+    private IEnumerator ReturnToLobby(float delayTime)
+    {
+        yield return new WaitForSeconds(delayTime);
+        SceneManager.LoadSceneAsync(2);
     }
 
     void OnShuffleButtonClicked()
@@ -224,6 +403,7 @@ public class GameManager : MonoBehaviour
         if (hintText != null && gameLogic != null)
         {
             hintText.text = $"Hint ({gameLogic.numsOfHint})";
+
         }
     }
 }

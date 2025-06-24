@@ -18,6 +18,9 @@ public class PrepareSceneManager : MonoBehaviourPunCallbacks
     public Button createBtn;
     public Button joinBtn;
 
+    private string pendingPlayerName; // Lưu tạm tên người chơi
+    private string pendingRoomName;
+
     private void Start()
     {
     }
@@ -45,6 +48,9 @@ public class PrepareSceneManager : MonoBehaviourPunCallbacks
             return;
         }
 
+        pendingPlayerName = playerName;
+        pendingRoomName = roomName;
+
         PhotonNetwork.NickName = playerName;
         GameManager.Instance.SetPlayerName(playerName);
         GameManager.Instance.SetRoomName(roomName);
@@ -68,6 +74,9 @@ public class PrepareSceneManager : MonoBehaviourPunCallbacks
             return;
         }
 
+        pendingPlayerName = playerName;
+        pendingRoomName = roomName;
+
         PhotonNetwork.NickName = playerName;
 
         GameManager.Instance.SetPlayerName(playerName);
@@ -81,16 +90,19 @@ public class PrepareSceneManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         Debug.Log("OnJoinedRoom");
+        GameManager.Instance.SetPlayerName(pendingPlayerName);
         PhotonNetwork.LoadLevel(2);
     }
 
     public override void OnJoinRoomFailed(short returnCode, string message)
     {
         Debug.LogError($"Failed to join room: {message}");
+        statusNetworkLabel.text = $"Failed to join room: {message}";
     }
 
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
         Debug.LogError($"Failed to create room: {message}");
+        statusNetworkLabel.text = $"Failed to create room: {message}";
     }
 }

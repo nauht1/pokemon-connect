@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Photon.Pun;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -14,27 +16,96 @@ public class GameLogic : MonoBehaviour
     private List<Vector2Int> tempPath = new List<Vector2Int>();
 
     private AudioManager audioManager;
+    private bool cameraIsReady = false;
+    private float startupTime;
 
     private void Start()
     {
         boardManager = FindObjectOfType<BoardManager>();
         audioManager = GameObject.FindGameObjectWithTag("Audio").GetComponent<AudioManager>();
+        startupTime = Time.time;
+        cameraIsReady = false;
+
+        // Subscribe to camera ready event
+        CameraController.OnCameraReady += OnCameraReady;
+
+        // If we're not the host, we should wait longer
+        if (PhotonNetwork.IsConnected && !PhotonNetwork.IsMasterClient)
+        {
+            // Non-host clients will wait for OnCameraReady event
+            Debug.Log("Non-host client will wait for camera setup");
+        }
+        else
+        {
+            // For host or single player, still wait a short time
+            StartCoroutine(SetCameraReady(1.0f));
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Unsubscribe when destroyed
+        CameraController.OnCameraReady -= OnCameraReady;
+    }
+
+    private void OnCameraReady()
+    {
+        Debug.Log("Received OnCameraReady event - GameLogic now accepting input");
+        cameraIsReady = true;
+    }
+
+    private IEnumerator SetCameraReady(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        cameraIsReady = true;
+        Debug.Log("GameLogic now accepting input after delay");
     }
 
     private void Update()
     {
+        // Wait longer for built non-host clients (3 seconds)
+        float waitTime = (PhotonNetwork.IsConnected && !PhotonNetwork.IsMasterClient) ? 3.0f : 1.0f;
+
+        // Skip processing if camera isn't ready or we're still in startup time
+        if (Time.time - startupTime < waitTime || !cameraIsReady)
+        {
+            return;
+        }
+
+        if (!Application.isFocused)
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+            if (Camera.main == null) return;
 
-            if (hit.collider != null)
+            Vector3 mousePos3D = Input.mousePosition;
+
+            float safeMargin = 5f; // 5-pixel safety margin
+            if (mousePos3D.x < safeMargin || mousePos3D.x > Screen.width - safeMargin ||
+                mousePos3D.y < safeMargin || mousePos3D.y > Screen.height - safeMargin)
             {
-                Tile clickedTile = hit.collider.GetComponent<Tile>();
-                if (clickedTile != null) 
+                return; // Skip processing clicks outside screen bounds or too close to the edge
+            }
+            try
+            {
+                Vector2 mousePos = Camera.main.ScreenToWorldPoint(mousePos3D);
+                RaycastHit2D hit = Physics2D.Raycast(mousePos, Vector2.zero);
+
+                if (hit.collider != null)
                 {
-                    HandleTileClick(clickedTile);
+                    Tile clickedTile = hit.collider.GetComponent<Tile>();
+                    if (clickedTile != null)
+                    {
+                        HandleTileClick(clickedTile);
+                    }
                 }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Exception during mouse input processing: {e.Message}");
             }
         }
     }
@@ -62,7 +133,16 @@ public class GameLogic : MonoBehaviour
 
                 boardManager.ReleaseTile(firstTile.gridPosition);
                 boardManager.ReleaseTile(secondTile.gridPosition);
-                GameManager.Instance.AddScore();
+
+                if (GameManager.Instance.GetCurrentGameMode() == GameManager.GameMode.Endless)
+                {
+                    GameManager.Instance.AddScoreEndless();
+                }
+                else if (GameManager.Instance.GetCurrentGameMode() == GameManager.GameMode.Multiplayer)
+                {
+                    int playerActorNumber = PhotonNetwork.LocalPlayer.ActorNumber;
+                    GameManager.Instance.AddScore(playerActorNumber);
+                }
 
                 CheckMoves(false);
             }
@@ -295,37 +375,55 @@ public class GameLogic : MonoBehaviour
     // Sử dụng để kiểm tra available move và show hint
     void CheckMoves(bool findHint)
     {
-        boardManager.UpdateTileGroups();
-        var tileGroups = boardManager.GetTileGroups();
-
-        foreach (var group in tileGroups.Values)
+        try
         {
-            int count = group.Count;
-            for (int i = 0; i < count - 1; i++)
-            {
-                for (int j = i + 1; j < count; j++)
-                {
-                    if (CanConnect(group[i], group[j]))
-                    {
-                        if (findHint && numsOfHint > 0)
-                        {
-                            numsOfHint -= 1;
-                            group[i].GetComponent<Tile>().HighlightTile();
-                            group[j].GetComponent<Tile>().HighlightTile();
-                        }
+            boardManager.UpdateTileGroups();
+            var tileGroups = boardManager.GetTileGroups();
 
-                        return;
+            if (tileGroups == null || tileGroups.Count == 0)
+            {
+                GameManager.Instance.ShowCongrats();
+                return;
+            }
+
+            foreach (var entry in tileGroups)
+            {
+                var group = entry.Value;
+                if (group == null) continue;
+
+                // Make a safe copy to avoid issues if the collection changes
+                List<Tile> safeCopy = new List<Tile>(group);
+                int count = safeCopy.Count;
+
+                for (int i = 0; i < count - 1; i++)
+                {
+                    if (safeCopy[i] == null) continue;
+
+                    for (int j = i + 1; j < count; j++)
+                    {
+                        if (safeCopy[j] == null) continue;
+
+                        if (CanConnect(safeCopy[i], safeCopy[j]))
+                        {
+                            if (findHint && numsOfHint > 0 && GameManager.Instance.GetCurrentGameMode() == GameManager.GameMode.Endless)
+                            {
+                                numsOfHint -= 1;
+                                safeCopy[i].HighlightTile();
+                                safeCopy[j].HighlightTile();
+                            }
+                            return;
+                        }
                     }
                 }
             }
-        }
 
-        if (tileGroups.Count == 0)
-        {
+            // If we got here with no tiles, show congrats
             GameManager.Instance.ShowCongrats();
         }
-
-        Debug.Log("No more move available");
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Error in CheckMoves: {e.Message}\n{e.StackTrace}");
+        }
     }
 
     public void ShowHint()
